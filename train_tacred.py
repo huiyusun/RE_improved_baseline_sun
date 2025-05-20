@@ -1,12 +1,17 @@
-import argparse
 import os
+import warnings
 
+warnings.filterwarnings("ignore", category=UserWarning, message="User provided device_type of 'cuda'")
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+import argparse
 import numpy as np
 import torch
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from transformers import AutoConfig, AutoTokenizer
-from transformers.optimization import AdamW, get_linear_schedule_with_warmup
+from torch.optim import AdamW
+from transformers.optimization import get_linear_schedule_with_warmup
 from utils import set_seed, collate_fn
 from prepro import TACREDProcessor
 from evaluation import get_f1
@@ -17,11 +22,12 @@ import wandb
 
 def train(args, model, train_features, benchmarks):
     train_dataloader = DataLoader(train_features, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn,
-                                  drop_last=True)
+                                  drop_last=True, num_workers=3)
     total_steps = int(len(train_dataloader) * args.num_train_epochs // args.gradient_accumulation_steps)
     warmup_steps = int(total_steps * args.warmup_ratio)
 
-    scaler = GradScaler()
+    use_amp = torch.cuda.is_available()
+    scaler = GradScaler() if use_amp else None
     optimizer = AdamW(model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps,
                                                 num_training_steps=total_steps)
@@ -41,19 +47,26 @@ def train(args, model, train_features, benchmarks):
                       }
             outputs = model(**inputs)
             loss = outputs[0] / args.gradient_accumulation_steps
-            scaler.scale(loss).backward()
+            if use_amp:
+                scaler.scale(loss).backward()
+            else:
+                loss.backward()
             if step % args.gradient_accumulation_steps == 0:
                 num_steps += 1
                 if args.max_grad_norm > 0:
-                    scaler.unscale_(optimizer)
+                    if use_amp:
+                        scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                scaler.step(optimizer)
-                scaler.update()
+                if use_amp:
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    optimizer.step()
                 scheduler.step()
                 model.zero_grad()
                 wandb.log({'loss': loss.item()}, step=num_steps)
 
-            if (num_steps % args.evaluation_steps == 0 and step % args.gradient_accumulation_steps == 0):
+            if num_steps % args.evaluation_steps == 0 and step % args.gradient_accumulation_steps == 0:
                 for tag, features in benchmarks:
                     f1, output = evaluate(args, model, features, tag=tag)
                     wandb.log(output, step=num_steps)
@@ -64,7 +77,8 @@ def train(args, model, train_features, benchmarks):
 
 
 def evaluate(args, model, features, tag='dev'):
-    dataloader = DataLoader(features, batch_size=args.test_batch_size, collate_fn=collate_fn, drop_last=False)
+    dataloader = DataLoader(features, batch_size=args.test_batch_size, collate_fn=collate_fn, drop_last=False,
+                            num_workers=3)
     keys, preds = [], []
     for i_b, batch in enumerate(tqdm(dataloader, desc=f"Evaluating {tag} set")):
         model.eval()
@@ -93,10 +107,10 @@ def evaluate(args, model, features, tag='dev'):
 
 def main():
     parser = argparse.ArgumentParser()
-    max_token_length = 256
-    epoch_num = 1.0
-    training_num = 1000
-    test_num = 2000
+    training_num = 1000  # default=None
+    epoch_num = 5.0  # default=5.0
+    max_token_length = 256  # default=512
+    test_num = 500  # default=None
 
     parser.add_argument("--data_dir", default="./data/tacred", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
@@ -154,7 +168,7 @@ def main():
         args.config_name if args.config_name else args.model_name_or_path,
         num_labels=args.num_class,
     )
-    config.gradient_checkpointing = True
+    config.gradient_checkpointing = False
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
     )
