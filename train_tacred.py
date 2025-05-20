@@ -16,13 +16,15 @@ import wandb
 
 
 def train(args, model, train_features, benchmarks):
-    train_dataloader = DataLoader(train_features, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn, drop_last=True)
+    train_dataloader = DataLoader(train_features, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn,
+                                  drop_last=True)
     total_steps = int(len(train_dataloader) * args.num_train_epochs // args.gradient_accumulation_steps)
     warmup_steps = int(total_steps * args.warmup_ratio)
 
     scaler = GradScaler()
     optimizer = AdamW(model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps,
+                                                num_training_steps=total_steps)
     print('Total steps: {}'.format(total_steps))
     print('Warmup steps: {}'.format(warmup_steps))
 
@@ -150,7 +152,7 @@ def main():
     )
 
     model = REModel(args, config)
-    model.to(0)
+    model.to(args.device)
 
     train_file = os.path.join(args.data_dir, "train.json")
     dev_file = os.path.join(args.data_dir, "dev.json")
