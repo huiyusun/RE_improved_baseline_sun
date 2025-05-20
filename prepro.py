@@ -29,7 +29,8 @@ class Processor:
             self.new_tokens = ['[E1]', '[/E1]', '[E2]', '[/E2]']
         self.tokenizer.add_tokens(self.new_tokens)
         if self.args.input_format not in (
-        'entity_mask', 'entity_marker', 'entity_marker_punct', 'typed_entity_marker', 'typed_entity_marker_punct'):
+                'entity_mask', 'entity_marker', 'entity_marker_punct', 'typed_entity_marker',
+                'typed_entity_marker_punct'):
             raise Exception("Invalid input format!")
 
     def tokenize(self, tokens, subj_type, obj_type, ss, se, os, oe):
@@ -148,12 +149,14 @@ class TACREDProcessor(Processor):
                             'per:religion': 37, 'per:stateorprovince_of_birth': 38, 'per:country_of_birth': 39,
                             'org:dissolved': 40, 'per:country_of_death': 41}
 
-    def read(self, file_in):
+    def read(self, file_in, max_examples=None):
         features = []
         with open(file_in, "r") as fh:
             data = json.load(fh)
 
-        for d in tqdm(data):
+        for i, d in enumerate(tqdm(data)):
+            if max_examples is not None and i >= max_examples:
+                break
             ss, se = d['subj_start'], d['subj_end']
             os, oe = d['obj_start'], d['obj_end']
 
@@ -190,12 +193,14 @@ class RETACREDProcessor(Processor):
                             'org:founded': 34, 'per:country_of_death': 35, 'per:country_of_birth': 36,
                             'per:date_of_birth': 37, 'per:cities_of_residence': 38, 'per:city_of_birth': 39}
 
-    def read(self, file_in):
+    def read(self, file_in, max_examples=None):
         features = []
         with open(file_in, "r") as fh:
             data = json.load(fh)
 
-        for d in tqdm(data):
+        for i, d in enumerate(tqdm(data)):
+            if max_examples is not None and i >= max_examples:
+                break
             ss, se = d['subj_start'], d['subj_end']
             os, oe = d['obj_start'], d['obj_end']
 

@@ -66,7 +66,7 @@ def train(args, model, train_features, benchmarks):
 def evaluate(args, model, features, tag='dev'):
     dataloader = DataLoader(features, batch_size=args.test_batch_size, collate_fn=collate_fn, drop_last=False)
     keys, preds = [], []
-    for i_b, batch in enumerate(dataloader):
+    for i_b, batch in enumerate(tqdm(dataloader, desc=f"Evaluating {tag} set")):
         model.eval()
 
         inputs = {'input_ids': batch[0].to(args.device),
@@ -93,6 +93,10 @@ def evaluate(args, model, features, tag='dev'):
 
 def main():
     parser = argparse.ArgumentParser()
+    max_token_length = 256
+    epoch_num = 1.0
+    training_num = 1000
+    test_num = 2000
 
     parser.add_argument("--data_dir", default="./data/tacred", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
@@ -103,7 +107,7 @@ def main():
                         help="Pretrained config name or path if not the same as model_name")
     parser.add_argument("--tokenizer_name", default="", type=str,
                         help="Pretrained tokenizer name or path if not the same as model_name")
-    parser.add_argument("--max_seq_length", default=512, type=int,
+    parser.add_argument("--max_seq_length", default=max_token_length, type=int,
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated.")
 
@@ -121,7 +125,7 @@ def main():
                         help="Max gradient norm.")
     parser.add_argument("--warmup_ratio", default=0.1, type=float,
                         help="Warm up ratio for Adam.")
-    parser.add_argument("--num_train_epochs", default=5.0, type=float,
+    parser.add_argument("--num_train_epochs", default=epoch_num, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--seed", type=int, default=42,
                         help="random seed for initialization")
@@ -134,6 +138,10 @@ def main():
     parser.add_argument("--run_name", type=str, default="tacred")
 
     args = parser.parse_args()
+    # Auto login to wandb (avoid interactive prompt)
+    os.environ["WANDB_API_KEY"] = os.getenv("WANDB_API_KEY", "")
+    os.environ["WANDB_MODE"] = "offline"  # or "online" if you want to sync to cloud automatically
+    os.environ["WANDB_CONSOLE"] = "off"
     wandb.init(project=args.project_name, name=args.run_name)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -161,11 +169,11 @@ def main():
     test_rev_file = os.path.join(args.data_dir, "test_rev.json")
 
     processor = TACREDProcessor(args, tokenizer)
-    train_features = processor.read(train_file)
-    dev_features = processor.read(dev_file)
-    test_features = processor.read(test_file)
-    dev_rev_features = processor.read(dev_rev_file)
-    test_rev_features = processor.read(test_rev_file)
+    train_features = processor.read(train_file, max_examples=training_num)  # small set of examples
+    dev_features = processor.read(dev_file, max_examples=test_num)
+    test_features = processor.read(test_file, max_examples=test_num)
+    dev_rev_features = processor.read(dev_rev_file, max_examples=test_num)
+    test_rev_features = processor.read(test_rev_file, max_examples=test_num)
 
     if len(processor.new_tokens) > 0:
         model.encoder.resize_token_embeddings(len(tokenizer))
