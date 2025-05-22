@@ -22,7 +22,7 @@ import wandb
 
 def train(args, model, train_features, benchmarks):
     train_dataloader = DataLoader(train_features, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn,
-                                  drop_last=True, num_workers=3)
+                                  drop_last=True)
     total_steps = int(len(train_dataloader) * args.num_train_epochs // args.gradient_accumulation_steps)
     warmup_steps = int(total_steps * args.warmup_ratio)
 
@@ -77,8 +77,7 @@ def train(args, model, train_features, benchmarks):
 
 
 def evaluate(args, model, features, tag='dev'):
-    dataloader = DataLoader(features, batch_size=args.test_batch_size, collate_fn=collate_fn, drop_last=False,
-                            num_workers=3)
+    dataloader = DataLoader(features, batch_size=args.test_batch_size, collate_fn=collate_fn, drop_last=False)
     keys, preds = [], []
     for i_b, batch in enumerate(tqdm(dataloader, desc=f"Evaluating {tag} set")):
         model.eval()
@@ -109,8 +108,9 @@ def main():
     parser = argparse.ArgumentParser()
     training_num = 1000  # default=None
     epoch_num = 5.0  # default=5.0
-    max_token_length = 256  # default=512
-    test_num = 500  # default=None
+    test_num = 2000  # default=None
+    max_token_length = 512  # default=512
+    train_file = "train_gpt4o_skewed.json"
 
     parser.add_argument("--data_dir", default="./data/tacred", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
@@ -154,8 +154,8 @@ def main():
     args = parser.parse_args()
     # Auto login to wandb (avoid interactive prompt)
     os.environ["WANDB_API_KEY"] = os.getenv("WANDB_API_KEY", "")
-    os.environ["WANDB_MODE"] = "offline"  # or "online" if you want to sync to cloud automatically
-    os.environ["WANDB_CONSOLE"] = "off"
+    os.environ["WANDB_MODE"] = "online"  # online or offline
+    os.environ["WANDB_CONSOLE"] = "wrap"  # prevent file logging, logs only to console
     wandb.init(project=args.project_name, name=args.run_name)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -176,7 +176,7 @@ def main():
     model = REModel(args, config)
     model.to(args.device)
 
-    train_file = os.path.join(args.data_dir, "train.json")
+    train_file = os.path.join(args.data_dir, train_file)
     dev_file = os.path.join(args.data_dir, "dev.json")
     test_file = os.path.join(args.data_dir, "test.json")
     dev_rev_file = os.path.join(args.data_dir, "dev_rev.json")
