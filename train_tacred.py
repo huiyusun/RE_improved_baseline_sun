@@ -106,11 +106,16 @@ def evaluate(args, model, features, tag='dev'):
 
 def main():
     parser = argparse.ArgumentParser()
-    training_num = 1000  # default=None
+    training_num = None  # default=None
     epoch_num = 5.0  # default=5.0
-    test_num = 2000  # default=None
+    test_num = None # default=None
     max_token_length = 512  # default=512
-    train_file = "train_gpt4o_skewed.json"
+    train_file = "./skewed/train_gpt4omini_merged_68124_3000.json" 
+    # next: train_gpt4omini_merged_68124_1000.json train_gpt4omini_merged_68124_2000.json train_gpt4omini_merged_68124_5000.json
+    # train_gpt4omini_merged_68124_6000.json train_gpt4omini_merged_68124_8000.json train_gpt4omini_merged_68124_10000.json
+    # train_gpt4omini_merged_68124_30000.json
+    eval_steps = 3000
+    print("Training dataset:\n", train_file)
 
     parser.add_argument("--data_dir", default="./data/tacred", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
@@ -144,7 +149,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42,
                         help="random seed for initialization")
     parser.add_argument("--num_class", type=int, default=42)
-    parser.add_argument("--evaluation_steps", type=int, default=500,
+    parser.add_argument("--evaluation_steps", type=int, default=eval_steps,
                         help="Number of steps to evaluate the model")
 
     parser.add_argument("--dropout_prob", type=float, default=0.1)
