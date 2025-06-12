@@ -1,5 +1,6 @@
 import os
 import warnings
+import sys
 
 warnings.filterwarnings("ignore", category=UserWarning, message="User provided device_type of 'cuda'")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -70,6 +71,7 @@ def train(args, model, train_features, benchmarks):
                 for tag, features in benchmarks:
                     f1, output = evaluate(args, model, features, tag=tag)
                     wandb.log(output, step=num_steps)
+                return  # early stopping
 
     for tag, features in benchmarks:
         f1, output = evaluate(args, model, features, tag=tag)
@@ -105,17 +107,18 @@ def evaluate(args, model, features, tag='dev'):
 
 
 def main():
+    print("Process ID:", os.getpid(), "Args:", sys.argv)
     parser = argparse.ArgumentParser()
     training_num = None  # default=None
     epoch_num = 5.0  # default=5.0
-    test_num = None # default=None
+    test_num = None  # default=None
     max_token_length = 512  # default=512
-    train_file = "./skewed/train_gpt4omini_merged_68124_3000.json" 
-    # next: train_gpt4omini_merged_68124_1000.json train_gpt4omini_merged_68124_2000.json train_gpt4omini_merged_68124_5000.json
-    # train_gpt4omini_merged_68124_6000.json train_gpt4omini_merged_68124_8000.json train_gpt4omini_merged_68124_10000.json
-    # train_gpt4omini_merged_68124_30000.json
-    eval_steps = 3000
-    print("Training dataset:\n", train_file)
+    # train_file = "./skewed/train_gpt4omini_merged_68124_3000.json"
+    eval_steps = 10000
+    train_lists = ["train_1000.json", "train_2000.json", "train_3000.json", "train_4000.json", "train_5000.json", "train_6000.json", "train_7000.json", "train_8000.json", "train_9000.json",
+                   "train_10000.json", "train_12000.json", "train_15000.json", "train_18000.json", "train_20000.json", "train_25000.json", "train_30000.json", "train_40000.json",
+                   "train_50000.json", "train_60000.json"]
+    # 
 
     parser.add_argument("--data_dir", default="./data/tacred", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
@@ -161,50 +164,56 @@ def main():
     os.environ["WANDB_API_KEY"] = os.getenv("WANDB_API_KEY", "")
     os.environ["WANDB_MODE"] = "online"  # online or offline
     os.environ["WANDB_CONSOLE"] = "wrap"  # prevent file logging, logs only to console
-    wandb.init(project=args.project_name, name=args.run_name)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    args.n_gpu = torch.cuda.device_count()
-    args.device = device
-    if args.seed > 0:
-        set_seed(args)
+    for file in train_lists:  # loop through each training file
+        wandb.init(project=args.project_name, name=f"{args.run_name}_{file}", reinit=True)
+        print(f"\n==== Training dataset: {file} ====\n")
+        # train_file = "./skewed/" + file
+        train_file = file
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        args.n_gpu = torch.cuda.device_count()
+        args.device = device
+        if args.seed > 0:
+            set_seed(args)
 
-    config = AutoConfig.from_pretrained(
-        args.config_name if args.config_name else args.model_name_or_path,
-        num_labels=args.num_class,
-    )
-    config.gradient_checkpointing = False
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
-    )
+        config = AutoConfig.from_pretrained(
+            args.config_name if args.config_name else args.model_name_or_path,
+            num_labels=args.num_class,
+        )
+        config.gradient_checkpointing = False
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+        )
 
-    model = REModel(args, config)
-    model.to(args.device)
+        model = REModel(args, config)
+        model.to(args.device)
 
-    train_file = os.path.join(args.data_dir, train_file)
-    dev_file = os.path.join(args.data_dir, "dev.json")
-    test_file = os.path.join(args.data_dir, "test.json")
-    dev_rev_file = os.path.join(args.data_dir, "dev_rev.json")
-    test_rev_file = os.path.join(args.data_dir, "test_rev.json")
+        train_file = os.path.join(args.data_dir, train_file)
+        dev_file = os.path.join(args.data_dir, "dev.json")
+        test_file = os.path.join(args.data_dir, "test.json")
+        dev_rev_file = os.path.join(args.data_dir, "dev_rev.json")
+        test_rev_file = os.path.join(args.data_dir, "test_rev.json")
 
-    processor = TACREDProcessor(args, tokenizer)
-    train_features = processor.read(train_file, max_examples=training_num)  # small set of examples
-    dev_features = processor.read(dev_file, max_examples=test_num)
-    test_features = processor.read(test_file, max_examples=test_num)
-    dev_rev_features = processor.read(dev_rev_file, max_examples=test_num)
-    test_rev_features = processor.read(test_rev_file, max_examples=test_num)
+        processor = TACREDProcessor(args, tokenizer)
+        train_features = processor.read(train_file, max_examples=training_num)  # small set of examples
+        dev_features = processor.read(dev_file, max_examples=test_num)
+        test_features = processor.read(test_file, max_examples=test_num)
+        dev_rev_features = processor.read(dev_rev_file, max_examples=test_num)
+        test_rev_features = processor.read(test_rev_file, max_examples=test_num)
 
-    if len(processor.new_tokens) > 0:
-        model.encoder.resize_token_embeddings(len(tokenizer))
+        if len(processor.new_tokens) > 0:
+            model.encoder.resize_token_embeddings(len(tokenizer))
 
-    benchmarks = (
-        ("dev", dev_features),
-        ("test", test_features),
-        ("dev_rev", dev_rev_features),
-        ("test_rev", test_rev_features),
-    )
+        benchmarks = (
+            ("dev", dev_features),
+            ("test", test_features),
+            ("dev_rev", dev_rev_features),
+            ("test_rev", test_rev_features),
+        )
 
-    train(args, model, train_features, benchmarks)
+        train(args, model, train_features, benchmarks)
+        wandb.finish()
+    print("\n==== All files processed. ====\n")
 
 
 if __name__ == "__main__":
