@@ -113,14 +113,15 @@ def main():
     epoch_num = 5.0  # default=5.0
     test_num = None  # default=None
     max_token_length = 512  # default=512
-    # train_file = "./skewed/train_gpt4omini_merged_68124_3000.json"
     eval_steps = 10000
-    train_lists = ["train_1000.json", "train_2000.json", "train_3000.json", "train_4000.json", "train_5000.json", "train_6000.json", "train_7000.json", "train_8000.json", "train_9000.json",
-                   "train_10000.json", "train_12000.json", "train_15000.json", "train_18000.json", "train_20000.json", "train_25000.json", "train_30000.json", "train_40000.json",
-                   "train_50000.json", "train_60000.json"]
-    # 
 
-    parser.add_argument("--data_dir", default="./data/tacred", type=str)
+    train_lists = ["train_0614_68124.json", "train_0614_68124_1000.json", "train_0614_68124_2000.json", "train_0614_68124_3000.json", "train_0614_68124_4000.json",
+                   "train_0614_68124_5000.json", "train_0614_68124_6000.json", "train_0614_68124_7000.json", "train_0614_68124_8000.json", "train_0614_68124_9000.json",
+                   "train_0614_68124_10000.json", "train_0614_68124_15000.json", "train_0614_68124_20000.json", "train_0614_68124_30000.json", "train_0614_68124_40000.json",
+                   "train_0614_68124_50000.json"]
+    # "train_0614_25001.json", "train_0613_25001.json", "train_0611_24001.json", "train_0610_19002.json", "train_gpt4o_0613_2400.json", "train_gpt4o_0612_2304.json", "train_gpt4o_0614_2400.json", 1000nosub, 2000nosub, 4000nosub
+
+    parser.add_argument("--data_dir", default="./data/tacred/skewed/subsamples", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
     parser.add_argument("--input_format", default="typed_entity_marker_punct", type=str,
                         help="in [entity_mask, entity_marker, entity_marker_punct, typed_entity_marker, typed_entity_marker_punct]")
@@ -165,11 +166,21 @@ def main():
     os.environ["WANDB_MODE"] = "online"  # online or offline
     os.environ["WANDB_CONSOLE"] = "wrap"  # prevent file logging, logs only to console
 
-    for file in train_lists:  # loop through each training file
-        wandb.init(project=args.project_name, name=f"{args.run_name}_{file}", reinit=True)
-        print(f"\n==== Training dataset: {file} ====\n")
-        # train_file = "./skewed/" + file
-        train_file = file
+    # Check all training files exist before proceeding
+    missing_files = []
+    for file in train_lists:
+        file_path = os.path.join(args.data_dir, file)
+        if not os.path.exists(file_path):
+            missing_files.append(file_path)
+    if missing_files:
+        print("Error: The following training files do not exist:")
+        for f in missing_files:
+            print("  -", f)
+        sys.exit(1)
+
+    for train_file in train_lists:  # loop through each training file
+        wandb.init(project=args.project_name, name=f"{args.run_name}_{train_file}", reinit=True)
+        print(f"\n==== Training dataset: {train_file} ====\n")
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         args.n_gpu = torch.cuda.device_count()
         args.device = device
