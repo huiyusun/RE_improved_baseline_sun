@@ -115,13 +115,9 @@ def main():
     max_token_length = 512  # default=512
     eval_steps = 10000
 
-    train_lists = ["train_0614_68124.json", "train_0614_68124_1000.json", "train_0614_68124_2000.json", "train_0614_68124_3000.json", "train_0614_68124_4000.json",
-                   "train_0614_68124_5000.json", "train_0614_68124_6000.json", "train_0614_68124_7000.json", "train_0614_68124_8000.json", "train_0614_68124_9000.json",
-                   "train_0614_68124_10000.json", "train_0614_68124_15000.json", "train_0614_68124_20000.json", "train_0614_68124_30000.json", "train_0614_68124_40000.json",
-                   "train_0614_68124_50000.json"]
-    # "train_0614_25001.json", "train_0613_25001.json", "train_0611_24001.json", "train_0610_19002.json", "train_gpt4o_0613_2400.json", "train_gpt4o_0612_2304.json", "train_gpt4o_0614_2400.json", 1000nosub, 2000nosub, 4000nosub
+    train_lists = ["train_0614_68124_25000.json", "train_gpt4o_0617_2400.json", "train_0617_4501.json", "train_0616_10000.json", "train_0616_10000_1.json", "train_gpt4o_0616_2304.json", "train_0616_24001.json"]
 
-    parser.add_argument("--data_dir", default="./data/tacred/skewed/subsamples", type=str)
+    parser.add_argument("--data_dir", default="./data/tacred/skewed/", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
     parser.add_argument("--input_format", default="typed_entity_marker_punct", type=str,
                         help="in [entity_mask, entity_marker, entity_marker_punct, typed_entity_marker, typed_entity_marker_punct]")
