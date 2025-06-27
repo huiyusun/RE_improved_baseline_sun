@@ -19,6 +19,7 @@ from evaluation import get_f1
 from model import REModel
 from torch.cuda.amp import GradScaler
 import wandb
+import csv
 
 
 def train(args, model, train_features, benchmarks):
@@ -73,9 +74,9 @@ def train(args, model, train_features, benchmarks):
                     wandb.log(output, step=num_steps)
                 return  # early stopping
 
-    for tag, features in benchmarks:
-        f1, output = evaluate(args, model, features, tag=tag)
-        wandb.log(output, step=num_steps)
+    # for tag, features in benchmarks:
+    #    f1, output = evaluate(args, model, features, tag=tag)
+    #    wandb.log(output, step=num_steps)
 
 
 def evaluate(args, model, features, tag='dev'):
@@ -115,8 +116,8 @@ def main():
     max_token_length = 512  # default=512
     eval_steps = 10000
 
-    train_lists = ["train_gpt4o_0617_2400.json", "train_0618_19999.json", "train_0618_4501.json", "train_0618_gpt4o_3001.json", "train_0619_24500.json",
-     "train_0620_24500.json", "train_0620_gpt40_2400.json", "train_0621_24400.json", "train_0622_24400_1.json", "train_0622_24400.json", "train_gpt40_0623_2400.json"]
+    train_lists = ["train_0626_gpt4o_2400.json", "train_0625_gpt4o_2400.json", "train_0624_gpt4o_2499.json", "train_0625_25001_1.json", "train_0625_25001.json", "train_0624_25001.json",
+                   "train_0623_507.json"]
 
     parser.add_argument("--data_dir", default="./data/tacred/skewed/", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
@@ -175,6 +176,10 @@ def main():
             print("  -", f)
         sys.exit(1)
 
+    results_csv = open("training_results.csv", "a", newline="")
+    csv_writer = csv.writer(results_csv, delimiter="\t")
+    csv_writer.writerow(["dataset", "dev_f1", "dev_rev_f1", "test_f1", "test_rev_f1"])
+
     for train_file in train_lists:  # loop through each training file
         wandb.init(project=args.project_name, name=f"{args.run_name}_{train_file}", reinit=True)
         print(f"\n==== Training dataset: {train_file} ====\n")
@@ -220,7 +225,29 @@ def main():
         )
 
         train(args, model, train_features, benchmarks)
+
+        # Predefine to hold outputs
+        output_dev, output_test, output_dev_rev, output_test_rev = {}, {}, {}, {}
+        # Evaluate and collect F1 scores after training
+        _, output_dev = evaluate(args, model, dev_features, tag="dev")
+        _, output_test = evaluate(args, model, test_features, tag="test")
+        _, output_dev_rev = evaluate(args, model, dev_rev_features, tag="dev_rev")
+        _, output_test_rev = evaluate(args, model, test_rev_features, tag="test_rev")
+
+        dev_f1 = output_dev.get("dev_f1", 0.0)
+        test_f1 = output_test.get("test_f1", 0.0)
+        dev_rev_f1 = output_dev_rev.get("dev_rev_f1", 0.0)
+        test_rev_f1 = output_test_rev.get("test_rev_f1", 0.0)
+        csv_writer.writerow([
+            train_file,
+            f"{dev_f1:.2f}",
+            f"{dev_rev_f1:.2f}",
+            f"{test_f1:.2f}",
+            f"{test_rev_f1:.2f}",
+        ])
+        results_csv.flush()
         wandb.finish()
+    results_csv.close()
     print("\n==== All files processed. ====\n")
 
 
