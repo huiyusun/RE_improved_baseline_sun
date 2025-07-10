@@ -116,8 +116,9 @@ def main():
     max_token_length = 512  # default=512
     eval_steps = 10000
 
-    train_lists = ["train_0626_gpt4o_2400.json", "train_0625_gpt4o_2400.json", "train_0624_gpt4o_2499.json", "train_0625_25001_1.json", "train_0625_25001.json", "train_0624_25001.json",
-                   "train_0623_507.json"]
+    train_lists = ["train_0708_gpt40_2400.json", "train_0707_25001.json", "train_0707_25001_1.json", "train_0706_25001.json", "train_0705_25001.json", 
+    "train_0704_25001.json", "train_0703_gpt4o_2400.json", "train_0702_25001.json", "train_0702_25001_1.json", "train_0630_gpt4o_2400.json", "train_0630_25001.json",
+    "train_0629_25001.json", "train_0629_25001_1.json", "train_0627_25001.json", "train_0626_25001.json"]
 
     parser.add_argument("--data_dir", default="./data/tacred/skewed/", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
