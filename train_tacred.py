@@ -116,11 +116,11 @@ def main():
     max_token_length = 512  # default=512
     eval_steps = 10000
 
-    train_lists = ["train_0708_gpt40_2400.json", "train_0707_25001.json", "train_0707_25001_1.json", "train_0706_25001.json", "train_0705_25001.json", 
-    "train_0704_25001.json", "train_0703_gpt4o_2400.json", "train_0702_25001.json", "train_0702_25001_1.json", "train_0630_gpt4o_2400.json", "train_0630_25001.json",
-    "train_0629_25001.json", "train_0629_25001_1.json", "train_0627_25001.json", "train_0626_25001.json"]
+    train_lists = ["train_mix_5000.json", "train_mix_6000.json", "train_mix_7000.json", "train_mix_8000.json", "train_mix_9000.json", "train_mix_10000.json", "train_mix_12000.json",
+                   "train_mix_15000.json", "train_mix_20000.json", "train_mix_25000.json", "train_mix_30000.json", "train_mix_40000.json", "train_mix_50000.json", "train_mix_60000.json",
+                   "train_mix_68124.json"]
 
-    parser.add_argument("--data_dir", default="./data/tacred/skewed/", type=str)
+    parser.add_argument("--data_dir", default="./data/tacred/skewed/mix", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
     parser.add_argument("--input_format", default="typed_entity_marker_punct", type=str,
                         help="in [entity_mask, entity_marker, entity_marker_punct, typed_entity_marker, typed_entity_marker_punct]")
