@@ -116,11 +116,11 @@ def main():
     max_token_length = 512  # default=512
     eval_steps = 10000
 
-    train_lists = ["train_mix_5000.json", "train_mix_6000.json", "train_mix_7000.json", "train_mix_8000.json", "train_mix_9000.json", "train_mix_10000.json", "train_mix_12000.json",
-                   "train_mix_15000.json", "train_mix_20000.json", "train_mix_25000.json", "train_mix_30000.json", "train_mix_40000.json", "train_mix_50000.json", "train_mix_60000.json",
-                   "train_mix_68124.json"]
+    train_lists = ["train_0702_10-90_split_68124.json", "train_0702_20-80_split_68124.json", "train_0702_30-70_split_68124.json", "train_0702_40-60_split_68124.json",
+    "train_0702_50-50_split_68124.json", "train_0702_60-40_split_68124.json", "train_0702_70-30_split_68124.json", "train_0702_80-20_split_68124.json",
+    "train_0702_90-10_split_68124.json"]
 
-    parser.add_argument("--data_dir", default="./data/tacred/skewed/mix", type=str)
+    parser.add_argument("--data_dir", default="./data/tacred/skewed", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
     parser.add_argument("--input_format", default="typed_entity_marker_punct", type=str,
                         help="in [entity_mask, entity_marker, entity_marker_punct, typed_entity_marker, typed_entity_marker_punct]")
